@@ -34,7 +34,7 @@ handler.setFormatter(formatter)
 
 
 def send_message(bot, message):
-    """Функция отправки сообщения в чат с пользователем"""
+    """Функция отправки сообщения в чат с пользователем."""
     try:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
         logger.info(f'Бот отправил сообщение: "{message}"')
@@ -43,8 +43,7 @@ def send_message(bot, message):
 
 
 def get_api_answer(current_timestamp):
-    """Функция, делающая запрос к API и передающая ответ для проверки
-    и распаковки"""
+    """Функция, делающая запрос к API и передающая ответ."""
     timestamp = current_timestamp or int(time.time())
     params = {"from_date": timestamp}
     response = requests.get(ENDPOINT, headers=HEADERS, params=params)
@@ -58,7 +57,7 @@ def get_api_answer(current_timestamp):
 
 
 def check_response(response):
-    """Функция, проверяющая и распаковывающая ответ"""
+    """Функция, проверяющая и распаковывающая ответ."""
     if not response:
         logger.error("Отсутствие ожидаемых ключей в ответе API")
         raise Exception("Отсутствие ожидаемых ключей в ответе API")
@@ -76,7 +75,7 @@ def check_response(response):
 
 
 def parse_status(homework):
-    """Функция, получающая данные из распакованного ответа"""
+    """Функция, получающая данные из распакованного ответа."""
     if isinstance(homework, str):
         raise KeyError("Некорректный формат данных")
     if isinstance(homework, list):
@@ -88,7 +87,7 @@ def parse_status(homework):
 
 
 def check_tokens():
-    """Функция, проверяющая наличие необходимых токенов и переменных"""
+    """Функция, проверяющая наличие необходимых токенов и переменных."""
     if PRACTICUM_TOKEN and TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
         return True
     logger.critical(
@@ -98,7 +97,7 @@ def check_tokens():
 
 
 def main():
-    """Основная логика работы бота"""
+    """Основная логика работы бота."""
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
 
