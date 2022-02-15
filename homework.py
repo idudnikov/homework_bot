@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import time
+from http import HTTPStatus
 
 import requests
 import telegram
@@ -17,13 +18,11 @@ RETRY_TIME = 600
 ENDPOINT = "https://practicum.yandex.ru/api/user_api/homework_statuses/"
 HEADERS = {"Authorization": f"OAuth {PRACTICUM_TOKEN}"}
 
-
 HOMEWORK_STATUSES = {
     "approved": "Работа проверена: ревьюеру всё понравилось. Ура!",
     "reviewing": "Работа взята на проверку ревьюером.",
     "rejected": "Работа проверена: у ревьюера есть замечания.",
 }
-
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -33,12 +32,20 @@ formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
 handler.setFormatter(formatter)
 
 
+class TGBotError(Exception):
+    pass
+
+
+class TGBotInfo(Exception):
+    pass
+
+
 def send_message(bot, message):
     """Функция отправки сообщения в чат с пользователем."""
     try:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
         logger.info(f'Бот отправил сообщение: "{message}"')
-    except Exception as error:
+    except telegram.TelegramError as error:
         logger.error(f'Ошибка отправки сообщения "{error}"')
 
 
@@ -46,31 +53,31 @@ def get_api_answer(current_timestamp):
     """Функция, делающая запрос к API и передающая ответ."""
     timestamp = current_timestamp or int(time.time())
     params = {"from_date": timestamp}
-    response = requests.get(ENDPOINT, headers=HEADERS, params=params)
-    if response.status_code != 200:
-        logging.error(
-            f"Эндпоинт {ENDPOINT} недоступен."
-            f"Код ответа {response.status_code}."
-        )
-        raise Exception("Эндпоинт недоступен")
-    return response.json()
+    try:
+        response = requests.get(ENDPOINT, headers=HEADERS, params=params)
+    except requests.RequestException:
+        print("Не удалось отправить запрос к эндпоинту")
+    else:
+        if response.status_code != HTTPStatus.OK:
+            raise TGBotError(
+                f"Эндпоинт {ENDPOINT} недоступен."
+                f"Код ответа {response.status_code}."
+            )
+        return response.json()
 
 
 def check_response(response):
     """Функция, проверяющая и распаковывающая ответ."""
     if not response:
-        logger.error("Отсутствие ожидаемых ключей в ответе API")
-        raise Exception("Отсутствие ожидаемых ключей в ответе API")
+        raise TGBotError("Отсутствие ожидаемых ключей в ответе API")
     if isinstance(response, list):
         homework = response[0].get("homeworks")
     else:
         homework = response.get("homeworks")
     if not homework:
-        logger.debug("Отсутствие в ответе новых статусов")
-        raise Exception("Отсутствие в ответе новых статусов")
+        raise TGBotInfo("Отсутствие в ответе новых статусов")
     if not isinstance(homework, list):
-        logger.error('Данные под ключом "homeworks" не в виде списка')
-        raise Exception('Данные под ключом "homeworks" не в виде списка')
+        raise TGBotError('Данные под ключом "homeworks" не в виде списка')
     return parse_status(homework)
 
 
@@ -100,18 +107,26 @@ def main():
     """Основная логика работы бота."""
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
+    if not check_tokens():
+        sys.exit()
 
     while True:
-        check_tokens()
         try:
             response = get_api_answer(current_timestamp)
             message = check_response(response)
             if message:
                 send_message(bot, message)
-            time.sleep(RETRY_TIME)
-        except Exception as error:
+        except TGBotError as error:
+            logger.error(error)
             message = f"Сбой в работе программы: {error}"
             send_message(bot, message)
+        except TGBotInfo as error:
+            logger.info(error)
+        except Exception as error:
+            logger.exception(error)
+            message = f"Сбой в работе программы: {error}"
+            send_message(bot, message)
+        finally:
             time.sleep(RETRY_TIME)
 
 
