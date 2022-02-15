@@ -34,11 +34,13 @@ handler.setFormatter(formatter)
 
 class TGBotError(Exception):
     """Кастомный класс для исключений с логированием уровня "error"."""
+
     pass
 
 
 class TGBotInfo(Exception):
     """Кастомный класс для исключений с логированием уровня "info"."""
+
     pass
 
 
