@@ -38,17 +38,11 @@ class TGBotError(Exception):
     pass
 
 
-class TGBotInfo(Exception):
-    """Кастомный класс для исключений с логированием уровня "info"."""
-
-    pass
-
-
 def send_message(bot, message):
     """Функция отправки сообщения в чат с пользователем."""
     try:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
-        logger.info(f'Бот отправил сообщение: "{message}"')
+        logger.debug(f'Бот отправил сообщение: "{message}"')
     except telegram.TelegramError as error:
         logger.error(f'Ошибка отправки сообщения "{error}"')
 
@@ -60,14 +54,13 @@ def get_api_answer(current_timestamp):
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
     except requests.RequestException:
-        print("Не удалось отправить запрос к эндпоинту")
-    else:
-        if response.status_code != HTTPStatus.OK:
-            raise TGBotError(
-                f"Эндпоинт {ENDPOINT} недоступен."
-                f"Код ответа {response.status_code}."
-            )
-        return response.json()
+        raise TGBotError("Не удалось отправить запрос к эндпоинту")
+    if response.status_code != HTTPStatus.OK:
+        raise TGBotError(
+            f"Эндпоинт {ENDPOINT} недоступен."
+            f"Код ответа {response.status_code}."
+        )
+    return response.json()
 
 
 def check_response(response):
@@ -75,13 +68,14 @@ def check_response(response):
     if not response:
         raise TGBotError("Отсутствие ожидаемых ключей в ответе API")
     if isinstance(response, list):
-        homework = response[0].get("homeworks")
+        homework = response[0]["homeworks"]
     else:
-        homework = response.get("homeworks")
+        homework = response["homeworks"]
     if not homework:
-        raise TGBotInfo("Отсутствие в ответе новых статусов")
+        logger.info("Отсутствие в ответе новых статусов")
+        return
     if not isinstance(homework, list):
-        raise TGBotError('Данные под ключом "homeworks" не в виде списка')
+        raise TGBotError("Данные под ключом 'homeworks' не в виде списка")
     return parse_status(homework)
 
 
@@ -124,8 +118,6 @@ def main():
             logger.error(error)
             message = f"Сбой в работе программы: {error}"
             send_message(bot, message)
-        except TGBotInfo as error:
-            logger.info(error)
         except Exception as error:
             logger.exception(error)
             message = f"Сбой в работе программы: {error}"
