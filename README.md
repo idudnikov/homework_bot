@@ -31,6 +31,6 @@
 
 `nano .env`
 
->PRACTICUM_TOKEN=<персональный токен Яндекс.Практикум>br/>
+>PRACTICUM_TOKEN=<персональный токен Яндекс.Практикум><br/>
 >TELEGRAM_TOKEN=<токен бота><br/>
 >TELEGRAM_CHAT_ID=<ID чата пользователя>
